@@ -8,7 +8,11 @@ import unittest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-CONFLICT_MARKERS = ("<<<<<<<", "=======", ">>>>>>>")
+CONFLICT_MARKERS = (
+    "<" * 7,
+    "=" * 7,
+    ">" * 7,
+)
 
 
 def _tracked_text_files() -> list[Path]:
