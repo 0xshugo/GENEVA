@@ -95,11 +95,13 @@ with image_tab:
         image_a = Image.open(file_a)
         image_b = Image.open(file_b)
 
-        similarity = image_check.image_similarity(image_a, image_b)
+        hash_a = image_check.phash(image_a)
+        hash_b = image_check.phash(image_b)
+        similarity = image_check.hash_similarity(hash_a, hash_b)
         result = {
             "similarity": similarity,
-            "hash_a": image_check.phash(image_a).flatten().tolist(),
-            "hash_b": image_check.phash(image_b).flatten().tolist(),
+            "hash_a": image_check.hash_to_bits(hash_a),
+            "hash_b": image_check.hash_to_bits(hash_b),
         }
 
         st.subheader("解析結果")

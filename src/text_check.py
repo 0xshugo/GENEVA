@@ -11,11 +11,16 @@ from __future__ import annotations
 from collections import Counter
 from dataclasses import dataclass
 import json
+import math
 import re
-from typing import List, Sequence, Tuple, TypedDict
+from typing import Iterable, List, Sequence, Tuple, TypedDict
 
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
+try:  # scikit-learn is optional in constrained environments
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from sklearn.metrics.pairwise import cosine_similarity
+except Exception:  # pragma: no cover - fallback path used without sklearn
+    TfidfVectorizer = None  # type: ignore[assignment]
+    cosine_similarity = None  # type: ignore[assignment]
 
 _WORD_RE = re.compile(r"\w+", re.UNICODE)
 
@@ -25,12 +30,67 @@ def _tokenize(text: str) -> List[str]:
     return _WORD_RE.findall(text.lower())
 
 
+def _generate_ngrams(tokens: List[str], ngram_range: tuple[int, int]) -> List[str]:
+    lower, upper = ngram_range
+    if lower <= 0 or upper < lower:
+        raise ValueError("Invalid ngram_range")
+    ngrams: List[str] = []
+    for n in range(lower, upper + 1):
+        if len(tokens) < n:
+            continue
+        for i in range(len(tokens) - n + 1):
+            ngrams.append(" ".join(tokens[i : i + n]))
+    return ngrams
+
+
+def _manual_tfidf_cosine(text_a: str, text_b: str, ngram_range: tuple[int, int]) -> float:
+    tokens_a = _tokenize(text_a)
+    tokens_b = _tokenize(text_b)
+    if not tokens_a or not tokens_b:
+        return 0.0
+
+    grams_a = _generate_ngrams(tokens_a, ngram_range)
+    grams_b = _generate_ngrams(tokens_b, ngram_range)
+    if not grams_a or not grams_b:
+        return 0.0
+
+    all_terms = sorted(set(grams_a) | set(grams_b))
+    doc_freq = {term: 0 for term in all_terms}
+    for term in set(grams_a):
+        doc_freq[term] += 1
+    for term in set(grams_b):
+        doc_freq[term] += 1
+
+    def _tfidf_vector(terms: Iterable[str]) -> List[float]:
+        term_counts = Counter(terms)
+        total_terms = sum(term_counts.values())
+        vector: List[float] = []
+        for term in all_terms:
+            tf = term_counts.get(term, 0) / total_terms if total_terms else 0.0
+            idf = math.log((2 + 1) / (doc_freq[term] + 1)) + 1.0
+            vector.append(tf * idf)
+        return vector
+
+    vec_a = _tfidf_vector(grams_a)
+    vec_b = _tfidf_vector(grams_b)
+
+    dot = sum(a * b for a, b in zip(vec_a, vec_b))
+    norm_a = math.sqrt(sum(a * a for a in vec_a))
+    norm_b = math.sqrt(sum(b * b for b in vec_b))
+    if norm_a == 0.0 or norm_b == 0.0:
+        return 0.0
+    return dot / (norm_a * norm_b)
+
+
 def tfidf_cosine_similarity(
     text_a: str, text_b: str, *, ngram_range: tuple[int, int] = (1, 2)
 ) -> float:
     """Return the cosine similarity between two texts using TF-IDF vectors."""
     if not text_a.strip() or not text_b.strip():
         return 0.0
+
+    if TfidfVectorizer is None or cosine_similarity is None:
+        return _manual_tfidf_cosine(text_a, text_b, ngram_range)
 
     vectorizer = TfidfVectorizer(ngram_range=ngram_range)
     tfidf_matrix = vectorizer.fit_transform([text_a, text_b])
