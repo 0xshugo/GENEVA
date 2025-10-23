@@ -37,6 +37,39 @@ with text_tab:
 
     references: List[str] = [part.strip() for part in reference_input.split("\n\n") if part.strip()]
 
+    with st.expander("詳細設定", expanded=False):
+        ngram_min, ngram_max = st.slider(
+            "TF-IDF n-gram範囲",
+            min_value=1,
+            max_value=5,
+            value=(1, 2),
+            help="ベクトル化に使用するn-gramの下限と上限を設定します。",
+        )
+        repetition_ngram = st.slider(
+            "AIリピティション n-gram長",
+            min_value=1,
+            max_value=10,
+            value=3,
+            help="繰り返し検出に用いるトークン長を指定します。",
+        )
+        phrase_limit = st.slider(
+            "繰り返しフレーズの最大表示件数",
+            min_value=0,
+            max_value=20,
+            value=5,
+            help="上位何件の繰り返しフレーズをJSONに含めるか選択します。0で非表示。",
+        )
+        show_all = st.checkbox("すべての繰り返しフレーズを表示", value=False)
+
+    if submission.strip() and references:
+        try:
+            analysis = text_check.analyse_submission(
+                submission,
+                references,
+                ngram_range=(ngram_min, ngram_max),
+                repetition_ngram_size=repetition_ngram,
+                repetition_phrase_limit=None if show_all else phrase_limit,
+            )
     if submission.strip() and references:
         try:
             analysis = text_check.analyse_submission(submission, references)
@@ -45,6 +78,9 @@ with text_tab:
         else:
             st.subheader("解析結果")
             st.json(analysis.to_dict())
+            if analysis.repeated_phrases:
+                st.markdown("#### 繰り返しフレーズ上位")
+                st.table(analysis.repeated_phrases)
     else:
         st.info("文章と参照文を入力すると解析が行われます。")
 
@@ -62,6 +98,13 @@ with image_tab:
         image_a = Image.open(file_a)
         image_b = Image.open(file_b)
 
+        hash_a = image_check.phash(image_a)
+        hash_b = image_check.phash(image_b)
+        similarity = image_check.hash_similarity(hash_a, hash_b)
+        result = {
+            "similarity": similarity,
+            "hash_a": image_check.hash_to_bits(hash_a),
+            "hash_b": image_check.hash_to_bits(hash_b),
         similarity = image_check.image_similarity(image_a, image_b)
         result = {
             "similarity": similarity,
