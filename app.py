@@ -70,6 +70,9 @@ with text_tab:
                 repetition_ngram_size=repetition_ngram,
                 repetition_phrase_limit=None if show_all else phrase_limit,
             )
+    if submission.strip() and references:
+        try:
+            analysis = text_check.analyse_submission(submission, references)
         except ValueError as err:
             st.error(str(err))
         else:
@@ -102,6 +105,11 @@ with image_tab:
             "similarity": similarity,
             "hash_a": image_check.hash_to_bits(hash_a),
             "hash_b": image_check.hash_to_bits(hash_b),
+        similarity = image_check.image_similarity(image_a, image_b)
+        result = {
+            "similarity": similarity,
+            "hash_a": image_check.phash(image_a).flatten().tolist(),
+            "hash_b": image_check.phash(image_b).flatten().tolist(),
         }
 
         st.subheader("解析結果")

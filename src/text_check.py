@@ -21,6 +21,11 @@ try:  # scikit-learn is optional in constrained environments
 except Exception:  # pragma: no cover - fallback path used without sklearn
     TfidfVectorizer = None  # type: ignore[assignment]
     cosine_similarity = None  # type: ignore[assignment]
+import re
+from typing import List, Sequence
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
 _WORD_RE = re.compile(r"\w+", re.UNICODE)
 
@@ -122,11 +127,18 @@ def ai_repetition_details(
     -------
     Tuple containing the repetition score in the range [0, 1] and a list of
     repeated phrase dictionaries sorted by frequency.
+def ai_repetition_score(text: str, *, ngram_size: int = 3) -> float:
+    """Estimate repetition by measuring repeated n-gram frequency.
+
+    The score ranges from 0.0 to 1.0 and represents the proportion of
+    repeated n-grams in the text.  A higher value indicates more repetition,
+    which can be symptomatic of low-quality or AI-generated content.
     """
 
     tokens = _tokenize(text)
     if len(tokens) < ngram_size or not tokens:
         return 0.0, []
+        return 0.0
 
     ngrams = [tuple(tokens[i : i + ngram_size]) for i in range(len(tokens) - ngram_size + 1)]
     counts = Counter(ngrams)
@@ -164,6 +176,11 @@ def ai_repetition_score(text: str, *, ngram_size: int = 3) -> float:
 
     score, _ = ai_repetition_details(text, ngram_size=ngram_size, limit=0)
     return score
+        return 0.0
+
+    repeated = sum(count for count in counts.values() if count > 1)
+    score = repeated / total
+    return float(min(max(score, 0.0), 1.0))
 
 
 @dataclass(slots=True)
@@ -202,6 +219,10 @@ def analyse_submission(
     repetition_ngram_size: int = 3,
     repetition_phrase_limit: int | None = 5,
 ) -> TextAnalysisResult:
+        }
+
+
+def analyse_submission(submission: str, references: Sequence[str]) -> TextAnalysisResult:
     """Analyse a text submission against reference texts.
 
     Parameters
@@ -235,6 +256,11 @@ def analyse_submission(
     repetition, repeated_phrases = ai_repetition_details(
         submission, ngram_size=repetition_ngram_size, limit=repetition_phrase_limit
     )
+        tfidf_cosine_similarity(submission, reference) for reference in cleaned_references
+    ]
+    max_similarity = max(similarities)
+    mean_similarity = sum(similarities) / len(similarities)
+    repetition = ai_repetition_score(submission)
 
     return TextAnalysisResult(
         submission=submission,
