@@ -8,12 +8,17 @@ import unittest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-CONFLICT_MARKERS = (
-    "<" * 7,
-    "=" * 7,
-    ">" * 7,
-    "|" * 7,
-)
+_MARKER_CHARS = "<=>|"
+_MARKER_WIDTH = 7
+
+
+def _conflict_markers() -> tuple[str, ...]:
+    """Return the canonical merge-conflict marker strings."""
+
+    return tuple(char * _MARKER_WIDTH for char in _MARKER_CHARS)
+
+
+CONFLICT_MARKERS = _conflict_markers()
 
 
 def _unmerged_paths() -> list[Path]:
