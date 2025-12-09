@@ -22,7 +22,6 @@ from PIL import Image
 
 def _ortho_dct_1d(vector: Sequence[float]) -> List[float]:
     """Fallback implementation of an orthonormal DCT-II transform."""
-
     n = len(vector)
     if n == 0:
         return []
@@ -41,7 +40,6 @@ def _ortho_dct_1d(vector: Sequence[float]) -> List[float]:
 
 def _ortho_dct_2d(matrix: Sequence[Sequence[float]]) -> List[List[float]]:
     """Compute a 2D orthonormal DCT using separability."""
-
     if scipy_dct is not None and np is not None:
         arr = np.asarray(matrix, dtype=float)
         dct_rows = scipy_dct(arr, axis=0, norm="ortho")
@@ -93,22 +91,27 @@ def _flatten_hash(hash_value: Iterable[Iterable[int]] | "np.ndarray") -> List[in
 
 def hash_to_bits(hash_value: Iterable[Iterable[int]] | "np.ndarray") -> List[int]:
     """Return the flattened perceptual hash as a list of integers."""
-
     return _flatten_hash(hash_value)
 
 
 def phash(
     image: Image.Image, *, hash_size: int = 8, highfreq_factor: int = 4
 ) -> "np.ndarray | List[List[int]]":
+    """Return the perceptual hash of an image using the discrete cosine transform.
 
-import numpy as np
-from PIL import Image
-from scipy.fftpack import dct
+    Parameters
+    ----------
+    image:
+        The PIL Image to hash.
+    hash_size:
+        The dimension of the resulting hash (default 8x8 = 64 bits).
+    highfreq_factor:
+        Factor to determine the image size for DCT computation.
 
-
-def phash(image: Image.Image, *, hash_size: int = 8, highfreq_factor: int = 4) -> np.ndarray:
-    """Return the perceptual hash of an image using the discrete cosine transform."""
-
+    Returns
+    -------
+    A numpy array or list of lists representing the binary hash.
+    """
     if hash_size <= 0:
         raise ValueError("hash_size must be positive")
     if highfreq_factor <= 0:
@@ -135,8 +138,19 @@ def hash_distance(
     hash_a: "np.ndarray | Iterable[Iterable[int]]",
     hash_b: "np.ndarray | Iterable[Iterable[int]]",
 ) -> int:
-    """Return the Hamming distance between two perceptual hashes."""
+    """Return the Hamming distance between two perceptual hashes.
 
+    Parameters
+    ----------
+    hash_a:
+        First hash to compare.
+    hash_b:
+        Second hash to compare.
+
+    Returns
+    -------
+    The Hamming distance (number of differing bits).
+    """
     flat_a = _flatten_hash(hash_a)
     flat_b = _flatten_hash(hash_b)
     if len(flat_a) != len(flat_b):
@@ -148,8 +162,19 @@ def hash_similarity(
     hash_a: "np.ndarray | Iterable[Iterable[int]]",
     hash_b: "np.ndarray | Iterable[Iterable[int]]",
 ) -> float:
-    """Return a normalised similarity score between 0 and 1 for two hashes."""
+    """Return a normalised similarity score between 0 and 1 for two hashes.
 
+    Parameters
+    ----------
+    hash_a:
+        First hash to compare.
+    hash_b:
+        Second hash to compare.
+
+    Returns
+    -------
+    Similarity score where 1.0 means identical and 0.0 means completely different.
+    """
     distance = hash_distance(hash_a, hash_b)
     total_bits = len(_flatten_hash(hash_a))
     return 1.0 - (distance / total_bits) if total_bits else 0.0
@@ -161,39 +186,24 @@ def image_similarity(
     *,
     hash_size: int = 8,
     highfreq_factor: int = 4,
-    image = image.convert("L").resize((img_size, img_size), Image.LANCZOS)
-    pixels = np.asarray(image, dtype=float)
-
-    dct_rows = dct(pixels, axis=0, norm="ortho")
-    dct_values = dct(dct_rows, axis=1, norm="ortho")
-    low_freq = dct_values[:hash_size, :hash_size]
-
-    # Exclude the DC component when computing the median.
-    median = np.median(low_freq[1:, 1:]) if hash_size > 1 else np.median(low_freq)
-    return (low_freq > median).astype(np.uint8)
-
-
-def hash_distance(hash_a: np.ndarray, hash_b: np.ndarray) -> int:
-    """Return the Hamming distance between two perceptual hashes."""
-
-    if hash_a.shape != hash_b.shape:
-        raise ValueError("Hash shapes must match for comparison")
-    return int(np.count_nonzero(hash_a != hash_b))
-
-
-def hash_similarity(hash_a: np.ndarray, hash_b: np.ndarray) -> float:
-    """Return a normalised similarity score between 0 and 1 for two hashes."""
-
-    distance = hash_distance(hash_a, hash_b)
-    total_bits = hash_a.size
-    return 1.0 - (distance / total_bits)
-
-
-def image_similarity(
-    image_a: Image.Image, image_b: Image.Image, *, hash_size: int = 8, highfreq_factor: int = 4
 ) -> float:
-    """Compute pHash similarity between two images."""
+    """Compute pHash similarity between two images.
 
+    Parameters
+    ----------
+    image_a:
+        First image to compare.
+    image_b:
+        Second image to compare.
+    hash_size:
+        The dimension of the perceptual hash (default 8x8 = 64 bits).
+    highfreq_factor:
+        Factor to determine the image size for DCT computation.
+
+    Returns
+    -------
+    Similarity score between 0.0 and 1.0.
+    """
     hash_a = phash(image_a, hash_size=hash_size, highfreq_factor=highfreq_factor)
     hash_b = phash(image_b, hash_size=hash_size, highfreq_factor=highfreq_factor)
     return hash_similarity(hash_a, hash_b)
@@ -201,7 +211,6 @@ def image_similarity(
 
 def _demo() -> None:
     """Simple smoke test comparing two generated images."""
-
     img1 = Image.new("RGB", (64, 64), color="navy")
     img2 = Image.new("RGB", (64, 64), color="blue")
     similarity = image_similarity(img1, img2)
@@ -209,8 +218,6 @@ def _demo() -> None:
         "similarity": similarity,
         "hash1": hash_to_bits(phash(img1)),
         "hash2": hash_to_bits(phash(img2)),
-        "hash1": phash(img1).flatten().tolist(),
-        "hash2": phash(img2).flatten().tolist(),
     }
     print(json.dumps(demo, indent=2))
 

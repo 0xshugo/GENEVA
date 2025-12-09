@@ -1,0 +1,12 @@
+[server]
+# Security settings
+maxUploadSize = 10  # Maximum file upload size in MB
+enableCORS = false
+enableXsrfProtection = true
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+# Optional: Customize theme colors
+primaryColor = "#1f77b4"
