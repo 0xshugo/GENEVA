@@ -26,7 +26,11 @@ def _read_text_sources(text: str | None, files: Sequence[str]) -> str:
     if text:
         parts.append(text)
     for file_path in files:
-        parts.append(Path(file_path).read_text(encoding="utf-8"))
+        path = Path(file_path).expanduser()
+        try:
+            parts.append(path.read_text(encoding="utf-8"))
+        except FileNotFoundError as exc:
+            raise ValueError(f"Submission file not found: {path}") from exc
     combined = "\n\n".join(part.strip() for part in parts if part and part.strip())
     if not combined:
         raise ValueError("A submission text is required (inline or file-based).")
@@ -36,7 +40,11 @@ def _read_text_sources(text: str | None, files: Sequence[str]) -> str:
 def _read_reference_sources(texts: Iterable[str], files: Sequence[str]) -> list[str]:
     references: list[str] = [item.strip() for item in texts if item and item.strip()]
     for file_path in files:
-        content = Path(file_path).read_text(encoding="utf-8").strip()
+        path = Path(file_path).expanduser()
+        try:
+            content = path.read_text(encoding="utf-8").strip()
+        except FileNotFoundError as exc:
+            raise ValueError(f"Reference file not found: {path}") from exc
         if content:
             references.append(content)
     if not references:
@@ -58,9 +66,20 @@ def _text_subcommand(args: argparse.Namespace) -> dict:
     return analysis.to_dict()
 
 
+def _load_image(path: str) -> Image.Image:
+    image_path = Path(path).expanduser()
+    try:
+        with Image.open(image_path) as image:
+            return image.convert("RGB")
+    except FileNotFoundError as exc:
+        raise ValueError(f"Image file not found: {image_path}") from exc
+    except OSError as exc:
+        raise ValueError(f"Unable to open image: {image_path}") from exc
+
+
 def _image_subcommand(args: argparse.Namespace) -> dict:
-    image_a = Image.open(args.image_a)
-    image_b = Image.open(args.image_b)
+    image_a = _load_image(args.image_a)
+    image_b = _load_image(args.image_b)
 
     hash_a = image_check.phash(image_a, hash_size=args.hash_size, highfreq_factor=args.highfreq_factor)
     hash_b = image_check.phash(image_b, hash_size=args.hash_size, highfreq_factor=args.highfreq_factor)

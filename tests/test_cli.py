@@ -7,6 +7,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from PIL import Image
+
 
 def _run_cli(args: list[str]) -> dict:
     proc = subprocess.run(
@@ -62,3 +64,29 @@ class TestCLI(unittest.TestCase):
         self.assertEqual(output["references"], ["repeat"])
         self.assertEqual(output["repetition_ngram_size"], 1)
         self.assertTrue(output["repeated_phrases"])
+
+    def test_image_cli_similarity(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            base_image = Path(tmpdir) / "a.png"
+            edited_image = Path(tmpdir) / "b.png"
+
+            # Create two simple identical 8x8 images to ensure maximal similarity.
+            red_square = Image.new("RGB", (8, 8), color=(255, 0, 0))
+            red_square.save(base_image)
+            red_square.save(edited_image)
+
+            output = _run_cli(
+                [
+                    "image",
+                    "--image-a",
+                    str(base_image),
+                    "--image-b",
+                    str(edited_image),
+                    "--hash-size",
+                    "4",
+                ]
+            )
+
+        self.assertIn("similarity", output)
+        self.assertEqual(output["hash_size"], 4)
+        self.assertAlmostEqual(output["similarity"], 1.0, places=3)
