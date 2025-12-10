@@ -25,6 +25,22 @@ pip install .
 2. ブラウザで表示されるUIから、テキストまたは画像を入力して解析結果（JSON）を確認します。
 3. モジュールを直接使用する場合は `src/text_check.py` と `src/image_check.py` をインポートし、デモ関数 `_demo()` を実行して挙動を確認できます。
 
+### コマンドライン利用
+Streamlitを起動せずに解析を行いたい場合はCLIを利用できます。
+
+```bash
+# 文章解析（インライン指定）
+python -m src.cli text --submission "The quick brown fox repeats." --reference "A fast brown fox leaps."
+
+# 文章解析（ファイル指定、整形出力）
+python -m src.cli text --submission-file sample.txt --reference-file reference.txt --pretty
+
+# 画像pHash類似度
+python -m src.cli image --image-a cat.png --image-b cat_edited.png --hash-size 8 --highfreq-factor 4
+```
+
+`--phrase-limit -1` を指定すると、繰り返しフレーズの全件を出力します。
+
 ## テキスト検査アルゴリズム
 - **TF-IDFコサイン類似度**: `sklearn.feature_extraction.text.TfidfVectorizer` を用いて、デフォルトでは1-2gramの単語ベクトルを生成します。`analyse_submission` の `ngram_range` パラメータを変更することで、文字ベースn-gram（例: `(2, 4)`）などに切り替えられ、日本語など空白を持たない言語にも対応可能です。
 - **AIリピティションスコア**: 連続n-gramの出現回数を集計し、総n-gram数に対する重複n-gram数の割合を0.0〜1.0で返します。併せて、頻出n-gramの上位一覧（フレーズ、出現回数、割合）をJSONに含めることで、LLM生成文で見られがちな反復パターンを把握できます。`repetition_ngram_size` と `repetition_phrase_limit` を調整することで粒度を変えられます。

@@ -22,7 +22,7 @@ setup(
         "scikit-learn>=1.3.0,<2.0.0",
         "streamlit>=1.28.0,<2.0.0",
     ],
-    py_modules=["text_check", "image_check"],
+    py_modules=["text_check", "image_check", "cli"],
     package_dir={"": "src"},
     include_package_data=True,
     classifiers=[
