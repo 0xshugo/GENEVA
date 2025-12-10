@@ -34,6 +34,64 @@ class TextCheckTests(unittest.TestCase):
         self.assertIn("similarities", serialised)
         self.assertIn("repeated_phrases", serialised)
 
+    def test_empty_text_handling(self) -> None:
+        """Test handling of empty strings."""
+        empty_similarity = text_check.tfidf_cosine_similarity("", "some text")
+        self.assertEqual(empty_similarity, 0.0)
+
+        empty_both = text_check.tfidf_cosine_similarity("", "")
+        self.assertEqual(empty_both, 0.0)
+
+        # Repetition score should be 0 for empty text
+        empty_score = text_check.ai_repetition_score("")
+        self.assertEqual(empty_score, 0.0)
+
+    def test_whitespace_only_text(self) -> None:
+        """Test handling of whitespace-only strings."""
+        whitespace_similarity = text_check.tfidf_cosine_similarity("   ", "test")
+        self.assertEqual(whitespace_similarity, 0.0)
+
+    def test_non_ascii_characters(self) -> None:
+        """Test handling of Japanese and emoji characters."""
+        japanese_text1 = "これはテストです"
+        japanese_text2 = "これはテストです"
+
+        similarity = text_check.tfidf_cosine_similarity(japanese_text1, japanese_text2)
+        self.assertAlmostEqual(similarity, 1.0, places=7)
+
+        # Test with emojis
+        emoji_text = "Hello 😊 World 😊"
+        score = text_check.ai_repetition_score(emoji_text)
+        self.assertGreaterEqual(score, 0.0)
+        self.assertLessEqual(score, 1.0)
+
+    def test_repetition_details_limit(self) -> None:
+        """Test repetition_phrase_limit parameter."""
+        # Create text with clear repetition (use longer repeated sequences)
+        text = "the quick brown fox the quick brown fox jumps over the lazy dog"
+
+        # Test with limit
+        score, phrases = text_check.ai_repetition_details(text, ngram_size=3, limit=1)
+        self.assertLessEqual(len(phrases), 1)
+
+        # Test with limit=0
+        score, phrases = text_check.ai_repetition_details(text, limit=0)
+        self.assertEqual(len(phrases), 0)
+
+        # Test with limit=None (all phrases)
+        score, phrases = text_check.ai_repetition_details(text, ngram_size=2, limit=None)
+        self.assertGreater(len(phrases), 0)
+
+    def test_analyse_submission_error_handling(self) -> None:
+        """Test error handling for invalid inputs."""
+        with self.assertRaises(ValueError):
+            # Empty references should raise ValueError
+            text_check.analyse_submission("test", [])
+
+        with self.assertRaises(ValueError):
+            # All whitespace references should raise ValueError
+            text_check.analyse_submission("test", ["   ", "  "])
+
 
 if __name__ == "__main__":
     unittest.main()

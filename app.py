@@ -70,17 +70,13 @@ with text_tab:
                 repetition_ngram_size=repetition_ngram,
                 repetition_phrase_limit=None if show_all else phrase_limit,
             )
-    if submission.strip() and references:
-        try:
-            analysis = text_check.analyse_submission(submission, references)
-        except ValueError as err:
-            st.error(str(err))
-        else:
             st.subheader("解析結果")
             st.json(analysis.to_dict())
             if analysis.repeated_phrases:
                 st.markdown("#### 繰り返しフレーズ上位")
                 st.table(analysis.repeated_phrases)
+        except ValueError as err:
+            st.error(str(err))
     else:
         st.info("文章と参照文を入力すると解析が行われます。")
 
@@ -95,30 +91,28 @@ with image_tab:
         file_b = st.file_uploader("画像B", type=["png", "jpg", "jpeg", "webp", "bmp"], key="image_b")
 
     if file_a and file_b:
-        image_a = Image.open(file_a)
-        image_b = Image.open(file_b)
+        try:
+            image_a = Image.open(file_a)
+            image_b = Image.open(file_b)
 
-        hash_a = image_check.phash(image_a)
-        hash_b = image_check.phash(image_b)
-        similarity = image_check.hash_similarity(hash_a, hash_b)
-        result = {
-            "similarity": similarity,
-            "hash_a": image_check.hash_to_bits(hash_a),
-            "hash_b": image_check.hash_to_bits(hash_b),
-        similarity = image_check.image_similarity(image_a, image_b)
-        result = {
-            "similarity": similarity,
-            "hash_a": image_check.phash(image_a).flatten().tolist(),
-            "hash_b": image_check.phash(image_b).flatten().tolist(),
-        }
+            hash_a = image_check.phash(image_a)
+            hash_b = image_check.phash(image_b)
+            similarity = image_check.hash_similarity(hash_a, hash_b)
+            result = {
+                "similarity": similarity,
+                "hash_a": image_check.hash_to_bits(hash_a),
+                "hash_b": image_check.hash_to_bits(hash_b),
+            }
 
-        st.subheader("解析結果")
-        st.json(result)
+            st.subheader("解析結果")
+            st.json(result)
 
-        preview_col1, preview_col2 = st.columns(2)
-        with preview_col1:
-            st.image(image_a, caption="画像A", use_column_width=True)
-        with preview_col2:
-            st.image(image_b, caption="画像B", use_column_width=True)
+            preview_col1, preview_col2 = st.columns(2)
+            with preview_col1:
+                st.image(image_a, caption="画像A", use_column_width=True)
+            with preview_col2:
+                st.image(image_b, caption="画像B", use_column_width=True)
+        except Exception as err:
+            st.error(f"画像の処理中にエラーが発生しました: {err}")
     else:
         st.info("両方の画像をアップロードすると類似度が表示されます。")
